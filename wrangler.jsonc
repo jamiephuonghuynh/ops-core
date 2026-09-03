@@ -10,7 +10,7 @@
     {
       "binding": "DB",
       "database_name": "ops_core_db_dev",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "5058bdad-d45c-4071-8d25-ee5f2355bf40",
       "migrations_dir": "migrations"
     }
   ],
