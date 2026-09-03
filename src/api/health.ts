@@ -5,11 +5,13 @@ import { jsonResponse } from "../response";
 export async function handleHealth(env: Env, requestId: string): Promise<Response> {
   try {
     const schemaVersion = await env.DB.prepare(`SELECT meta_value FROM system_meta WHERE meta_key = 'schema_version' LIMIT 1`).first<string>("meta_value");
-    const ok = schemaVersion === SCHEMA_VERSION;
+    const authConfigured = typeof env.OPS_CORE_API_KEY === "string" && env.OPS_CORE_API_KEY.length > 0;
+    const ok = schemaVersion === SCHEMA_VERSION && authConfigured;
     return jsonResponse({
       status: ok ? "ok" : "degraded",
       service: SERVICE_NAME,
       database: "ok",
+      auth: { configured: authConfigured },
       schemaVersion: schemaVersion ?? null,
       expectedSchemaVersion: SCHEMA_VERSION,
       buildVersion: BUILD_VERSION,
@@ -21,6 +23,7 @@ export async function handleHealth(env: Env, requestId: string): Promise<Respons
       status: "error",
       service: SERVICE_NAME,
       database: "error",
+      auth: { configured: typeof env.OPS_CORE_API_KEY === "string" && env.OPS_CORE_API_KEY.length > 0 },
       schemaVersion: null,
       expectedSchemaVersion: SCHEMA_VERSION,
       buildVersion: BUILD_VERSION,
