@@ -7,7 +7,7 @@
     "enabled": true
   },
   "secrets": {
-  "required": ["OPS_CORE_API_KEY"]
+    "required": ["OPS_CORE_API_KEY"]
   },
   "d1_databases": [
     {
