@@ -4,6 +4,8 @@ export interface Env {
   CORE_EXECUTION_WORKFLOW: Workflow<CoreExecutionWorkflowParams>;
   ARTIFACTS: R2Bucket;
   OPS_CORE_API_KEY: string;
+  GOOGLE_SERVICE_ACCOUNT_EMAIL: string;
+  GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: string;
 }
 
 export type ExecutionStatus =
@@ -169,4 +171,40 @@ export interface FoundationTestConfig {
     failStep?: string | null;
     failAttempts?: number;
   };
+}
+
+
+export type GoogleSnapshotMode = "METADATA_ONLY" | "NORMALIZED_SNAPSHOT";
+export type OutputCommitStatus = "PREPARED" | "COMMITTED" | "UNKNOWN" | "FAILED";
+
+export interface OutputCommitRow {
+  output_commit_id: string;
+  execution_id: string;
+  resource_id: string;
+  step_code: string | null;
+  artifact_role: string;
+  commit_key: string;
+  business_key: string | null;
+  payload_hash: string;
+  status: OutputCommitStatus;
+  provider_operation: string;
+  provider_reference: string | null;
+  attempt_count: number;
+  error_code: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  committed_at: string | null;
+}
+
+export type GoogleCellValue = string | number | boolean | null;
+
+export interface NormalizedGoogleSheet {
+  headers: GoogleCellValue[];
+  rows: GoogleCellValue[][];
+  rowCount: number;
+  columnCount: number;
+  fetchedAt: string;
+  snapshotHash: string;
+  canonicalJson: string;
 }
