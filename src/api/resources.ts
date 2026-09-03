@@ -4,6 +4,7 @@ import { getResource } from "../db/resources";
 import { getArtifactObject } from "../storage/r2";
 import type { Env } from "../types";
 import { errorResponse, jsonResponse } from "../response";
+import { getDriveFileContent } from "../google/drive";
 
 export async function handleUploadR2Resource(request: Request, env: Env, requestId: string): Promise<Response> {
   const executionId = request.headers.get("X-OPS-Execution-Id")?.trim() ?? "";
@@ -48,21 +49,38 @@ export async function handleGetResourceContent(env: Env, resourceId: string, req
   const resource = await getResource(env, resourceId);
   if (!resource) return errorResponse("RESOURCE_NOT_FOUND", "Resource was not found", 404, requestId);
   if (resource.active_status !== "ACTIVE") return errorResponse("RESOURCE_INACTIVE", "Resource is inactive", 409, requestId);
-  if (resource.resource_type !== "R2_OBJECT" || resource.provider !== "CLOUDFLARE_R2" || !resource.external_id) {
-    return errorResponse("RESOURCE_CONTENT_UNAVAILABLE", "This resource does not expose binary content through the R2 content endpoint", 409, requestId);
+  if (resource.resource_type === "R2_OBJECT" && resource.provider === "CLOUDFLARE_R2" && resource.external_id) {
+    try {
+      const object = await getArtifactObject(env, resource.external_id);
+      if (!object) return errorResponse("R2_READ_FAILED", "R2 object was not found for this resource", 404, requestId);
+      const headers = new Headers();
+      object.writeHttpMetadata(headers);
+      headers.set("Content-Type", resource.mime_type || headers.get("Content-Type") || "application/octet-stream");
+      headers.set("Content-Length", String(resource.byte_size ?? object.size));
+      headers.set("X-OPS-Resource-Id", resource.resource_id);
+      if (resource.content_hash) headers.set("X-OPS-SHA256", resource.content_hash);
+      headers.set("Cache-Control", "private, no-store");
+      return new Response(object.body, { status: 200, headers });
+    } catch {
+      return errorResponse("R2_READ_FAILED", "Artifact content could not be read", 503, requestId);
+    }
   }
-  try {
-    const object = await getArtifactObject(env, resource.external_id);
-    if (!object) return errorResponse("R2_READ_FAILED", "R2 object was not found for this resource", 404, requestId);
-    const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    headers.set("Content-Type", resource.mime_type || headers.get("Content-Type") || "application/octet-stream");
-    headers.set("Content-Length", String(resource.byte_size ?? object.size));
-    headers.set("X-OPS-Resource-Id", resource.resource_id);
-    if (resource.content_hash) headers.set("X-OPS-SHA256", resource.content_hash);
-    headers.set("Cache-Control", "private, no-store");
-    return new Response(object.body, { status: 200, headers });
-  } catch {
-    return errorResponse("R2_READ_FAILED", "Artifact content could not be read", 503, requestId);
+  if (resource.resource_type === "DRIVE_FILE" && resource.provider === "GOOGLE" && resource.external_id) {
+    try {
+      const response = await getDriveFileContent(env, resource.external_id);
+      if (!response.ok) {
+        if (response.status === 403) return errorResponse("GOOGLE_ACCESS_DENIED", "Google Drive file access denied", 403, requestId);
+        if (response.status === 404) return errorResponse("GOOGLE_RESOURCE_NOT_FOUND", "Google Drive file was not found", 404, requestId);
+        return errorResponse("GOOGLE_DRIVE_READ_FAILED", "Google Drive content could not be read", 502, requestId);
+      }
+      const headers = new Headers(response.headers);
+      headers.set("Content-Type", resource.mime_type || headers.get("Content-Type") || "application/octet-stream");
+      headers.set("X-OPS-Resource-Id", resource.resource_id);
+      headers.set("Cache-Control", "private, no-store");
+      return new Response(response.body, { status: 200, headers });
+    } catch {
+      return errorResponse("GOOGLE_DRIVE_READ_FAILED", "Google Drive content could not be read", 502, requestId);
+    }
   }
+  return errorResponse("RESOURCE_CONTENT_UNAVAILABLE", "This resource type does not expose binary content", 409, requestId);
 }

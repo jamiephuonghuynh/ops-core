@@ -1,4 +1,5 @@
 import { BUILD_VERSION, CODE_BASE, ENVIRONMENT, SCHEMA_VERSION, SERVICE_NAME } from "../config";
+import { isGoogleWorkspaceConfigured } from "../google/auth";
 import type { Env } from "../types";
 import { jsonResponse } from "../response";
 
@@ -7,13 +8,15 @@ export async function handleHealth(env: Env, requestId: string): Promise<Respons
     const schemaVersion = await env.DB.prepare(`SELECT meta_value FROM system_meta WHERE meta_key = 'schema_version' LIMIT 1`).first<string>("meta_value");
     const authConfigured = typeof env.OPS_CORE_API_KEY === "string" && env.OPS_CORE_API_KEY.length > 0;
     const artifactStorageConfigured = Boolean(env.ARTIFACTS && typeof env.ARTIFACTS.get === "function" && typeof env.ARTIFACTS.put === "function");
-    const ok = schemaVersion === SCHEMA_VERSION && authConfigured && artifactStorageConfigured;
+    const googleConfigured = isGoogleWorkspaceConfigured(env);
+    const ok = schemaVersion === SCHEMA_VERSION && authConfigured && artifactStorageConfigured && googleConfigured;
     return jsonResponse({
       status: ok ? "ok" : "degraded",
       service: SERVICE_NAME,
       database: "ok",
       auth: { configured: authConfigured },
       artifactStorage: { configured: artifactStorageConfigured },
+      googleWorkspace: { configured: googleConfigured },
       schemaVersion: schemaVersion ?? null,
       expectedSchemaVersion: SCHEMA_VERSION,
       buildVersion: BUILD_VERSION,
@@ -27,6 +30,7 @@ export async function handleHealth(env: Env, requestId: string): Promise<Respons
       database: "error",
       auth: { configured: typeof env.OPS_CORE_API_KEY === "string" && env.OPS_CORE_API_KEY.length > 0 },
       artifactStorage: { configured: Boolean(env.ARTIFACTS) },
+      googleWorkspace: { configured: isGoogleWorkspaceConfigured(env) },
       schemaVersion: null,
       expectedSchemaVersion: SCHEMA_VERSION,
       buildVersion: BUILD_VERSION,
@@ -38,12 +42,5 @@ export async function handleHealth(env: Env, requestId: string): Promise<Respons
 }
 
 export function handleVersion(requestId: string): Response {
-  return jsonResponse({
-    ok: true,
-    service: SERVICE_NAME,
-    buildVersion: BUILD_VERSION,
-    codeBase: CODE_BASE,
-    schemaVersion: SCHEMA_VERSION,
-    environment: ENVIRONMENT,
-  }, 200, requestId);
+  return jsonResponse({ ok: true, service: SERVICE_NAME, buildVersion: BUILD_VERSION, codeBase: CODE_BASE, schemaVersion: SCHEMA_VERSION, environment: ENVIRONMENT }, 200, requestId);
 }
