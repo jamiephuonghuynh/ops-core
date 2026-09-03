@@ -1,0 +1,42 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ops-core-dev",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-03",
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ops_core_db_dev",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "EXECUTION_QUEUE",
+        "queue": "ops-execution-ingress-dev"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "ops-execution-ingress-dev",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "ops-execution-ingress-dlq-dev",
+        "retry_delay": 5
+      }
+    ]
+  },
+  "workflows": [
+    {
+      "name": "ops-core-execution-dev",
+      "binding": "CORE_EXECUTION_WORKFLOW",
+      "class_name": "CoreExecutionWorkflow"
+    }
+  ]
+}

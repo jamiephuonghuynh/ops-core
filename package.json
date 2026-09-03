@@ -1,0 +1,17 @@
+{
+  "name": "ops-core-dev",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "cf-types": "wrangler types",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply ops_core_db_dev --local",
+    "db:migrate:remote": "wrangler d1 migrations apply ops_core_db_dev --remote"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "wrangler": "^4.33.1"
+  }
+}
