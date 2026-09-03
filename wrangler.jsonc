@@ -3,11 +3,13 @@
   "name": "ops-core-dev",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-03",
-  "observability": {
-    "enabled": true
-  },
+  "observability": { "enabled": true },
   "secrets": {
-    "required": ["OPS_CORE_API_KEY"]
+    "required": [
+      "OPS_CORE_API_KEY",
+      "GOOGLE_SERVICE_ACCOUNT_EMAIL",
+      "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY"
+    ]
   },
   "d1_databases": [
     {
@@ -18,17 +20,11 @@
     }
   ],
   "r2_buckets": [
-    {
-      "binding": "ARTIFACTS",
-      "bucket_name": "ops-artifacts-dev"
-    }
+    { "binding": "ARTIFACTS", "bucket_name": "ops-artifacts-dev" }
   ],
   "queues": {
     "producers": [
-      {
-        "binding": "EXECUTION_QUEUE",
-        "queue": "ops-execution-ingress-dev"
-      }
+      { "binding": "EXECUTION_QUEUE", "queue": "ops-execution-ingress-dev" }
     ],
     "consumers": [
       {
@@ -42,10 +38,6 @@
     ]
   },
   "workflows": [
-    {
-      "name": "ops-core-execution-dev",
-      "binding": "CORE_EXECUTION_WORKFLOW",
-      "class_name": "CoreExecutionWorkflow"
-    }
+    { "name": "ops-core-execution-dev", "binding": "CORE_EXECUTION_WORKFLOW", "class_name": "CoreExecutionWorkflow" }
   ]
 }
