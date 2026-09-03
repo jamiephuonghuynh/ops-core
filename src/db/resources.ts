@@ -16,3 +16,13 @@ export async function insertResource(env: Env, row: ResourceReferenceRow): Promi
     row.active_status, row.created_at, row.updated_at,
   ).run();
 }
+
+
+export async function findResourceByCanonicalUri(env: Env, canonicalUri: string): Promise<ResourceReferenceRow | null> {
+  return env.DB.prepare(`SELECT * FROM resource_references WHERE canonical_uri = ?1 LIMIT 1`).bind(canonicalUri).first<ResourceReferenceRow>();
+}
+
+export async function updateResourceMetadata(env: Env, resourceId: string, metadataJson: string): Promise<void> {
+  await env.DB.prepare(`UPDATE resource_references SET metadata_json = ?2, updated_at = ?3 WHERE resource_id = ?1`)
+    .bind(resourceId, metadataJson, new Date().toISOString()).run();
+}
