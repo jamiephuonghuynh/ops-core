@@ -6,12 +6,14 @@ export async function handleHealth(env: Env, requestId: string): Promise<Respons
   try {
     const schemaVersion = await env.DB.prepare(`SELECT meta_value FROM system_meta WHERE meta_key = 'schema_version' LIMIT 1`).first<string>("meta_value");
     const authConfigured = typeof env.OPS_CORE_API_KEY === "string" && env.OPS_CORE_API_KEY.length > 0;
-    const ok = schemaVersion === SCHEMA_VERSION && authConfigured;
+    const artifactStorageConfigured = Boolean(env.ARTIFACTS && typeof env.ARTIFACTS.get === "function" && typeof env.ARTIFACTS.put === "function");
+    const ok = schemaVersion === SCHEMA_VERSION && authConfigured && artifactStorageConfigured;
     return jsonResponse({
       status: ok ? "ok" : "degraded",
       service: SERVICE_NAME,
       database: "ok",
       auth: { configured: authConfigured },
+      artifactStorage: { configured: artifactStorageConfigured },
       schemaVersion: schemaVersion ?? null,
       expectedSchemaVersion: SCHEMA_VERSION,
       buildVersion: BUILD_VERSION,
@@ -24,6 +26,7 @@ export async function handleHealth(env: Env, requestId: string): Promise<Respons
       service: SERVICE_NAME,
       database: "error",
       auth: { configured: typeof env.OPS_CORE_API_KEY === "string" && env.OPS_CORE_API_KEY.length > 0 },
+      artifactStorage: { configured: Boolean(env.ARTIFACTS) },
       schemaVersion: null,
       expectedSchemaVersion: SCHEMA_VERSION,
       buildVersion: BUILD_VERSION,
