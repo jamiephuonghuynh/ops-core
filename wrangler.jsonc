@@ -17,6 +17,12 @@
       "migrations_dir": "migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "ARTIFACTS",
+      "bucket_name": "ops-artifacts-dev"
+    }
+  ],
   "queues": {
     "producers": [
       {
