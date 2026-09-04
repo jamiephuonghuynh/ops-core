@@ -13,5 +13,8 @@
   "devDependencies": {
     "typescript": "^5.9.2",
     "wrangler": "^4.33.1"
+  },
+  "dependencies": {
+    "xlsx": "0.18.5"
   }
 }
