@@ -22,9 +22,9 @@ export async function insertExecutionIfAbsent(
     INSERT OR IGNORE INTO execution_instances (
       execution_id, task_id, task_version, source_type, source_reference,
       requested_by_actor_type, requested_by_actor_id, requested_at,
-      status, idempotency_key, request_hash, parent_execution_id, correlation_id,
+      status, idempotency_key, request_hash, request_payload_json, parent_execution_id, correlation_id,
       created_at, updated_at
-    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'CREATED', ?9, ?10, ?11, ?12, ?13, ?14)
+    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'CREATED', ?9, ?10, ?11, ?12, ?13, ?14, ?15)
   `).bind(
     executionId,
     task.task_id,
@@ -36,6 +36,7 @@ export async function insertExecutionIfAbsent(
     now,
     input.idempotencyKey,
     requestHash,
+    JSON.stringify(input.payload ?? null),
     input.parentExecutionId ?? null,
     input.correlationId ?? null,
     now,
