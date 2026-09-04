@@ -1,7 +1,7 @@
 export const SERVICE_NAME = "ops-core-dev";
-export const BUILD_VERSION = "OPS-CF-GWCF01";
-export const CODE_BASE = "030926_2205";
-export const SCHEMA_VERSION = "0003";
+export const BUILD_VERSION = "OPS-CF-T001SC01";
+export const CODE_BASE = "040926_1055";
+export const SCHEMA_VERSION = "0004";
 export const ENVIRONMENT = "DEV";
 export const WORKFLOW_RETRY_LIMIT = 3;
 export const ARTIFACT_UPLOAD_MAX_BYTES = 25 * 1024 * 1024;

@@ -55,6 +55,7 @@ export interface ExecutionRow {
   result_message: string | null;
   idempotency_key: string;
   request_hash: string;
+  request_payload_json: string | null;
   parent_execution_id: string | null;
   correlation_id: string | null;
   created_at: string;
