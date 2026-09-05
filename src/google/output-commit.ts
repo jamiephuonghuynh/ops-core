@@ -31,6 +31,7 @@ export async function appendGoogleSheetWithCommit(env: Env, input: { executionId
       commit_key: input.commitKey,
       business_key: input.businessKey ?? null,
       payload_hash: payloadHash,
+      row_count: input.rows.length,
       status: "PREPARED",
       provider_operation: "GOOGLE_SHEETS_APPEND",
       provider_reference: null,
