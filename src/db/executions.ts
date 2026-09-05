@@ -88,3 +88,12 @@ export async function setExecutionRuntimeConfig(env: Env, executionId: string, c
     WHERE execution_id = ?1
   `).bind(executionId, config.runtimeConfigVersion, config.mappingSetId, config.bindingVersion, new Date().toISOString()).run();
 }
+
+
+export async function setExecutionAutomationContext(env: Env, executionId: string, input: { runDate: string | null; runSlot: string | null; automationId: string | null }): Promise<void> {
+  await env.DB.prepare(`UPDATE execution_instances SET run_date=?2, run_slot=?3, automation_id=?4, updated_at=?5 WHERE execution_id=?1`).bind(executionId,input.runDate,input.runSlot,input.automationId,new Date().toISOString()).run();
+}
+
+export async function setExecutionNotificationConfig(env: Env, executionId: string, notificationConfigSetId: string | null): Promise<void> {
+  await env.DB.prepare(`UPDATE execution_instances SET notification_config_set_id=?2, updated_at=?3 WHERE execution_id=?1`).bind(executionId,notificationConfigSetId,new Date().toISOString()).run();
+}
