@@ -11,6 +11,8 @@ import {
   VENDOR_OUTPUT_MAPPINGS,
   VENDOR_OUTPUT_FIELDS,
   type Task001FieldMapping,
+  type Task001MappingBundle,
+  DEFAULT_TASK001_MAPPING_BUNDLE,
 } from "./definition";
 import { detectDuplicateOrders, type DuplicateResult } from "./duplicates";
 import { buildSalesAreaIndex, enrichGeoFields, normalize, type StandardRow } from "./geo";
@@ -26,6 +28,7 @@ export interface Task001ComputeInput {
   gappOrderBaseline: NormalizedDataset;
   vendorOrderBaseline: NormalizedDataset;
   requestedAt: string;
+  mappings?: Task001MappingBundle;
 }
 
 export interface Task001ComputeResult {
@@ -178,10 +181,15 @@ async function stableBusinessHash(rows: StandardRow[], fields: string[]): Promis
 }
 
 export async function computeTask001(input: Task001ComputeInput): Promise<Task001ComputeResult> {
-  const standardRows = mapRows(input.gapp, GAPP_INPUT_MAPPINGS);
-  const requiredWarnings = validateRequired(standardRows, GAPP_INPUT_MAPPINGS);
-  const vendorRows = mapRows(input.vendor, VENDOR_INPUT_MAPPINGS);
-  const salesAreaRows = mapRows(input.salesArea, SALES_AREA_INPUT_MAPPINGS);
+  const mappings = input.mappings ?? DEFAULT_TASK001_MAPPING_BUNDLE;
+  const gappOutputFields = mappings.gappOutput.map((m) => m.standardField);
+  const deliveryOutputFields = mappings.deliveryOutput.map((m) => m.standardField);
+  const gappBusinessFields = gappOutputFields.filter((f) => f !== "requested_at");
+  const deliveryBusinessFields = deliveryOutputFields.filter((f) => f !== "requested_at");
+  const standardRows = mapRows(input.gapp, mappings.gappInput);
+  const requiredWarnings = validateRequired(standardRows, mappings.gappInput);
+  const vendorRows = mapRows(input.vendor, mappings.vendorInput);
+  const salesAreaRows = mapRows(input.salesArea, mappings.salesAreaInput);
   const routed = filterSmartlink(standardRows, buildVendorIndex(vendorRows));
   const salesAreaIndex = buildSalesAreaIndex(salesAreaRows);
   enrichGeoFields(routed.included, salesAreaIndex);
@@ -192,18 +200,18 @@ export async function computeTask001(input: Task001ComputeInput): Promise<Task00
       resultStatus: "WARNING", resultCode: "NO_VENDOR_ROWS", resultMessage: `No Smartlink rows found. ${routed.skipped.length} rows skipped.`,
       inputCount: standardRows.length, includedCount: 0, includedOrderIds: [], skipped: routed.skipped, requiredWarnings,
       vendorDuplicates: { warnings: [], errors: [], skipOrderIds: {} }, gappDuplicates: { warnings: [], errors: [], skipOrderIds: {} },
-      gappRows: [], vendorRows: [], gappBusinessHash: await stableBusinessHash([], GAPP_BUSINESS_HASH_FIELDS), vendorBusinessHash: await stableBusinessHash([], VENDOR_BUSINESS_HASH_FIELDS),
+      gappRows: [], vendorRows: [], gappBusinessHash: await stableBusinessHash([], gappBusinessFields), vendorBusinessHash: await stableBusinessHash([], deliveryBusinessFields),
     };
   }
 
-  const vendorDuplicates = detectDuplicateOrders(routed.included, mapBaseline(input.vendorOrderBaseline, VENDOR_OUTPUT_MAPPINGS));
-  const gappDuplicates = detectDuplicateOrders(routed.included, mapBaseline(input.gappOrderBaseline, GAPP_OUTPUT_MAPPINGS));
+  const vendorDuplicates = detectDuplicateOrders(routed.included, mapBaseline(input.vendorOrderBaseline, mappings.deliveryOutput));
+  const gappDuplicates = detectDuplicateOrders(routed.included, mapBaseline(input.gappOrderBaseline, mappings.gappOutput));
   const duplicateErrors = [...vendorDuplicates.errors, ...gappDuplicates.errors];
   if (duplicateErrors.length) {
     return {
       resultStatus: "FAILED", resultCode: "DUPLICATE_CONFLICT", resultMessage: `Conflicting duplicate order_id found: ${duplicateErrors.length}`,
       inputCount: standardRows.length, includedCount: routed.included.length, includedOrderIds: routed.included.map((row) => normalize(row.order_id)), skipped: routed.skipped, requiredWarnings, vendorDuplicates, gappDuplicates,
-      gappRows: [], vendorRows: [], gappBusinessHash: await stableBusinessHash([], GAPP_BUSINESS_HASH_FIELDS), vendorBusinessHash: await stableBusinessHash([], VENDOR_BUSINESS_HASH_FIELDS),
+      gappRows: [], vendorRows: [], gappBusinessHash: await stableBusinessHash([], gappBusinessFields), vendorBusinessHash: await stableBusinessHash([], deliveryBusinessFields),
     };
   }
 
@@ -211,8 +219,8 @@ export async function computeTask001(input: Task001ComputeInput): Promise<Task00
   const gappRowsToAppend = routed.included.filter((row) => !gappDuplicates.skipOrderIds[normalize(row.order_id)]);
   vendorRowsToAppend.forEach((row) => { row.requested_at = input.requestedAt; });
   gappRowsToAppend.forEach((row) => { row.requested_at = input.requestedAt; });
-  const projectedGapp = projectRows(gappRowsToAppend, GAPP_OUTPUT_FIELDS);
-  const projectedVendor = projectRows(vendorRowsToAppend, VENDOR_OUTPUT_FIELDS);
+  const projectedGapp = projectRows(gappRowsToAppend, gappOutputFields);
+  const projectedVendor = projectRows(vendorRowsToAppend, deliveryOutputFields);
   const warningCount = requiredWarnings.length + vendorDuplicates.warnings.length + gappDuplicates.warnings.length;
   const status = warningCount ? "WARNING" : "SUCCESS";
   return {
@@ -228,7 +236,7 @@ export async function computeTask001(input: Task001ComputeInput): Promise<Task00
     ].filter(Boolean).join(" "),
     inputCount: standardRows.length, includedCount: routed.included.length, includedOrderIds: routed.included.map((row) => normalize(row.order_id)), skipped: routed.skipped, requiredWarnings, vendorDuplicates, gappDuplicates,
     gappRows: projectedGapp, vendorRows: projectedVendor,
-    gappBusinessHash: await stableBusinessHash(projectedGapp, GAPP_BUSINESS_HASH_FIELDS),
-    vendorBusinessHash: await stableBusinessHash(projectedVendor, VENDOR_BUSINESS_HASH_FIELDS),
+    gappBusinessHash: await stableBusinessHash(projectedGapp, gappBusinessFields),
+    vendorBusinessHash: await stableBusinessHash(projectedVendor, deliveryBusinessFields),
   };
 }

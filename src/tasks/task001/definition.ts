@@ -8,7 +8,7 @@ export interface Task001FieldMapping {
 }
 
 export const TASK001_ID = "task001_smartlink_order";
-export const TASK001_DEFINITION_VERSION = "TASK001-SHADOW-01";
+export const TASK001_DEFINITION_VERSION = "TASK001-PROD-FOUNDATION-01";
 
 export const GAPP_INPUT_MAPPINGS: Task001FieldMapping[] = [
   { sourceField: "IDtracking", standardField: "order_id", dataType: "text", required: false },
@@ -115,3 +115,20 @@ export const GAPP_OUTPUT_FIELDS = GAPP_OUTPUT_MAPPINGS.map((mapping) => mapping.
 export const VENDOR_OUTPUT_FIELDS = VENDOR_OUTPUT_MAPPINGS.map((mapping) => mapping.standardField);
 export const GAPP_BUSINESS_HASH_FIELDS = GAPP_OUTPUT_FIELDS.filter((field) => field !== "requested_at");
 export const VENDOR_BUSINESS_HASH_FIELDS = VENDOR_OUTPUT_FIELDS.filter((field) => field !== "requested_at");
+
+
+export interface Task001MappingBundle {
+  gappInput: Task001FieldMapping[];
+  vendorInput: Task001FieldMapping[];
+  salesAreaInput: Task001FieldMapping[];
+  gappOutput: Task001FieldMapping[];
+  deliveryOutput: Task001FieldMapping[];
+}
+
+export const DEFAULT_TASK001_MAPPING_BUNDLE: Task001MappingBundle = {
+  gappInput: GAPP_INPUT_MAPPINGS,
+  vendorInput: VENDOR_INPUT_MAPPINGS,
+  salesAreaInput: SALES_AREA_INPUT_MAPPINGS,
+  gappOutput: GAPP_OUTPUT_MAPPINGS,
+  deliveryOutput: VENDOR_OUTPUT_MAPPINGS,
+};
