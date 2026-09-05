@@ -8,6 +8,7 @@ import { beginStep, completeStep, failStep } from "../db/steps";
 import { getTaskDefinition } from "../db/tasks";
 import { TASK001_ID } from "../tasks/task001/definition";
 import { runTask001ProductionFoundationWorkflow } from "../tasks/task001/production";
+import { updateAutomationRun } from "../db/automation-runs";
 
 function errorText(error: unknown): string { return error instanceof Error ? error.message : String(error); }
 async function bestEffortEvent(env: Env, executionId: string, eventType: string, payload: unknown, stepInstanceId: string | null = null): Promise<void> {
@@ -44,11 +45,12 @@ export class CoreExecutionWorkflow extends WorkflowEntrypoint<Env, CoreExecution
     if (!task) throw new Error(`Task ${execution.task_id} not found`);
     try {
       const started = await transitionExecutionIfNotStatus(this.env, executionId, "RUNNING", null, null);
-      if (started) await bestEffortEvent(this.env, executionId, "EXECUTION_STARTED", { taskId: execution.task_id });
+      if (started) { await bestEffortEvent(this.env, executionId, "EXECUTION_STARTED", { taskId: execution.task_id }); if (execution.run_date && execution.run_slot) { try { await updateAutomationRun(this.env,execution.task_id,execution.run_date,execution.run_slot,{status:"RUNNING",executionId}); } catch {} } }
 
       if (execution.task_id === TASK001_ID) {
         const outcome = await runTask001ProductionFoundationWorkflow(this.env, step, execution, task, <T>(stepCode: string, stepOrder: number, inputSummary: unknown, callback: (attempt: number) => Promise<T>) => recordedStep(this.env, step, executionId, stepCode, stepOrder, inputSummary, callback));
         const changed = await transitionExecutionIfNotStatus(this.env, executionId, outcome.status, outcome.resultCode, outcome.resultMessage);
+        if (execution.run_date && execution.run_slot) { try { await updateAutomationRun(this.env,execution.task_id,execution.run_date,execution.run_slot,{status:outcome.status,executionId,resultCode:outcome.resultCode}); } catch {} }
         if (changed) await bestEffortEvent(this.env, executionId, "EXECUTION_COMPLETED", { resultCode: outcome.resultCode, status: outcome.status, reportResourceId: outcome.reportResourceId });
         return { executionId, ...outcome };
       }
@@ -68,6 +70,7 @@ export class CoreExecutionWorkflow extends WorkflowEntrypoint<Env, CoreExecution
     } catch (error) {
       const detail = errorText(error);
       const changed = await transitionExecutionIfNotStatus(this.env, executionId, "FAILED", "WORKFLOW_FAILED", detail);
+      if (execution.run_date && execution.run_slot) { try { await updateAutomationRun(this.env,execution.task_id,execution.run_date,execution.run_slot,{status:"FAILED",executionId,resultCode:"WORKFLOW_FAILED"}); } catch {} }
       if (changed) await bestEffortEvent(this.env, executionId, "EXECUTION_FAILED", { error: detail });
       throw error;
     }
