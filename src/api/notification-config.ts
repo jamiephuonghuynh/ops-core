@@ -1,0 +1,4 @@
+import { publishOpsNotificationConfig } from "../notification/publisher";
+import { errorResponse, jsonResponse } from "../response";
+import type { Env } from "../types";
+export async function handlePublishNotificationConfig(request:Request,env:Env,requestId:string):Promise<Response>{let b:any;try{b=await request.json();}catch{return errorResponse("INVALID_REQUEST","JSON body required",400,requestId);}if(!b?.operationsMasterResourceId)return errorResponse("INVALID_REQUEST","operationsMasterResourceId is required",400,requestId);try{return jsonResponse(await publishOpsNotificationConfig(env,{operationsMasterResourceId:String(b.operationsMasterResourceId).trim(),publishedBy:b.publishedBy?String(b.publishedBy):null}),201,requestId);}catch(error){return errorResponse("NOTIFICATION_CONFIG_PUBLISH_FAILED",error instanceof Error?error.message:String(error),500,requestId);}}
