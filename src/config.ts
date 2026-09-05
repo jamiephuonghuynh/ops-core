@@ -1,6 +1,6 @@
 export const SERVICE_NAME = "ops-core-dev";
-export const BUILD_VERSION = "OPS-CF-T001PCN01";
-export const CODE_BASE = "050926_1831";
+export const BUILD_VERSION = "OPS-CF-T001PCN01-HF01";
+export const CODE_BASE = "050926_2106";
 export const SCHEMA_VERSION = "0006";
 export const ENVIRONMENT = "DEV";
 export const WORKFLOW_RETRY_LIMIT = 3;
