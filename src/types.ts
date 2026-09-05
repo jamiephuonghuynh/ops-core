@@ -6,6 +6,10 @@ export interface Env {
   OPS_CORE_API_KEY: string;
   GOOGLE_SERVICE_ACCOUNT_EMAIL: string;
   GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY: string;
+  OPS_STAGING_URL: string;
+  OPS_STAGING_FETCH_KEY: string;
+  RESEND_API_KEY: string;
+  RESEND_FROM_EMAIL: string;
 }
 
 export type ExecutionStatus =
@@ -59,6 +63,10 @@ export interface ExecutionRow {
   runtime_config_version: string | null;
   mapping_set_id: string | null;
   binding_version: string | null;
+  notification_config_set_id: string | null;
+  run_date: string | null;
+  run_slot: string | null;
+  automation_id: string | null;
   parent_execution_id: string | null;
   correlation_id: string | null;
   created_at: string;
@@ -190,6 +198,7 @@ export interface OutputCommitRow {
   commit_key: string;
   business_key: string | null;
   payload_hash: string;
+  row_count: number | null;
   status: OutputCommitStatus;
   provider_operation: string;
   provider_reference: string | null;
@@ -217,6 +226,7 @@ export type BindingDirection = "INPUT" | "REFERENCE" | "OUTPUT" | "DELIVERY";
 export type MappingDirection = "INPUT" | "OUTPUT";
 export type InputProcessingStatus = "AVAILABLE" | "PROCESSING" | "PROCESSED" | "PROCESSED_NO_OUTPUT" | "FAILED";
 export type BusinessKeyClaimStatus = "CLAIMED" | "COMMITTED" | "UNKNOWN";
+export type RuntimeOwner = "LEGACY_APPS_SCRIPT" | "CLOUDFLARE";
 
 export interface ResourceBindingRow {
   binding_id: string;
@@ -293,4 +303,21 @@ export interface BusinessKeyClaimRow {
   created_at: string;
   updated_at: string;
   committed_at: string | null;
+}
+
+
+export interface TaskRuntimeOwnershipRow {
+  task_id: string; runtime_owner: RuntimeOwner; previous_owner: RuntimeOwner | null; effective_at: string | null; changed_by: string | null; change_reason: string | null; updated_at: string;
+}
+export interface SourceCoverageStateRow {
+  coverage_state_id: string; task_id: string; source_role: string; coverage_axis: string; last_contiguous_value: string; last_coverage_type: string | null; last_execution_id: string | null; last_input_resource_id: string | null; updated_at: string;
+}
+export interface AutomationRunRow {
+  automation_run_id: string; task_id: string; run_date: string; run_slot: string; automation_id: string | null; request_id: string | null; status: "AVAILABLE"|"ACQUIRED"|"ACCEPTED"|"RUNNING"|"SUCCESS"|"WARNING"|"FAILED"; execution_id: string | null; source_start_date: string | null; source_end_date: string | null; result_code: string | null; created_at: string; updated_at: string;
+}
+export interface NotificationRuleRow {
+  notification_rule_id:string; notification_config_set_id:string; source_template_id:string; producer:string; event_type:string; task_id:string|null; outcome:string|null; resource_role:string|null; channel:string; subject_template:string; body_template_plain:string; body_template_html:string; active_flag:number; created_at:string;
+}
+export interface NotificationRecipientRow {
+  notification_recipient_id:string; notification_config_set_id:string; source_recipient_config_id:string; task_id:string|null; outcome:string|null; resource_role:string|null; channel:string; recipient_type:string; recipient_value:string; active_flag:number; created_at:string;
 }

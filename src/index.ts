@@ -10,6 +10,14 @@ import { handleAppendGoogleSheet, handleGoogleHealth, handleGoogleSheetSnapshot,
 import { consumeExecutionIngress } from "./queue/execution-ingress";
 import { handlePublishTaskConfig } from "./api/task-config";
 import { handleReprocessInput } from "./api/input-processing";
+import { handleAutomationDryRun, handleAutomationIntake, handleCheckAutomationRun } from "./api/automation-intake";
+import { handleCommitSourceCoverage, handleInitializeSourceCoverage, handleResolveSourceCoverage } from "./api/source-coverage";
+import { handleGetRuntimeOwnership, handleSetRuntimeOwnership } from "./api/runtime-ownership";
+import { handlePublishNotificationConfig } from "./api/notification-config";
+import { handleTask001BootstrapBusinessKeys } from "./api/task001-cutover";
+import { handleTask001CutoverPreflight } from "./api/task001-preflight";
+import { handleEmitNotificationEvent, handleProcessNotificationBacklog, handleRetryNotificationEvent } from "./api/notifications";
+import { handleTask001RecoverNotificationOutbox } from "./api/task001-notification";
 import { errorResponse } from "./response";
 
 function requestId(): string { return `REQ_${crypto.randomUUID()}`; }
@@ -34,6 +42,18 @@ export default {
       else if (request.method === "POST" && url.pathname === "/api/resources/google-drive-file") response = await handleRegisterGoogleDriveFile(request, env, reqId);
       else if (request.method === "POST" && url.pathname === "/api/resources/google-drive-folder") response = await handleRegisterGoogleDriveFolder(request, env, reqId);
       else if (request.method === "POST" && url.pathname === "/api/task-config/publish") response = await handlePublishTaskConfig(request, env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/notification-config/publish") response = await handlePublishNotificationConfig(request, env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/automation-intake") response = await handleAutomationIntake(request, env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/automation-intake/dry-run") response = await handleAutomationDryRun(request, env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/notifications/events") response = await handleEmitNotificationEvent(request, env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/notifications/process-pending") response = await handleProcessNotificationBacklog(request, env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/task001/recover-notification-outbox") response = await handleTask001RecoverNotificationOutbox(env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/automation-runs/check") response = await handleCheckAutomationRun(request, env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/source-coverage/resolve") response = await handleResolveSourceCoverage(request, env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/source-coverage/commit") response = await handleCommitSourceCoverage(request, env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/source-coverage/initialize") response = await handleInitializeSourceCoverage(request, env, reqId);
+      else if (request.method === "POST" && url.pathname === "/api/task001/bootstrap-business-keys") response = await handleTask001BootstrapBusinessKeys(request, env, reqId);
+      else if (request.method === "GET" && url.pathname === "/api/task001/cutover-preflight") response = await handleTask001CutoverPreflight(env, reqId);
       else {
         const googleReadMatch = url.pathname.match(/^\/api\/resources\/([^/]+)\/google-sheet\/read$/);
         const googleAppendMatch = url.pathname.match(/^\/api\/resources\/([^/]+)\/google-sheet\/append$/);
@@ -44,7 +64,12 @@ export default {
         const eventMatch = url.pathname.match(/^\/api\/executions\/([^/]+)\/events$/);
         const inputReprocessMatch = url.pathname.match(/^\/api\/input-processing\/([^/]+)\/reprocess$/);
         const executionMatch = url.pathname.match(/^\/api\/executions\/([^/]+)$/);
-        if (request.method === "GET" && googleReadMatch) response = await handleReadGoogleSheet(env, decodeURIComponent(googleReadMatch[1]), reqId);
+        const ownershipMatch = url.pathname.match(/^\/api\/runtime-ownership\/([^/]+)$/);
+        const notificationRetryMatch = url.pathname.match(/^\/api\/notifications\/events\/([^/]+)\/retry$/);
+        if (request.method === "POST" && notificationRetryMatch) response = await handleRetryNotificationEvent(env, decodeURIComponent(notificationRetryMatch[1]), reqId);
+        else if (request.method === "GET" && ownershipMatch) response = await handleGetRuntimeOwnership(env, decodeURIComponent(ownershipMatch[1]), reqId);
+        else if (request.method === "POST" && ownershipMatch) response = await handleSetRuntimeOwnership(request, env, decodeURIComponent(ownershipMatch[1]), reqId);
+        else if (request.method === "GET" && googleReadMatch) response = await handleReadGoogleSheet(env, decodeURIComponent(googleReadMatch[1]), reqId);
         else if (request.method === "POST" && googleAppendMatch) response = await handleAppendGoogleSheet(request, env, decodeURIComponent(googleAppendMatch[1]), reqId);
         else if (request.method === "POST" && snapshotMatch) response = await handleGoogleSheetSnapshot(request, env, decodeURIComponent(snapshotMatch[1]), reqId);
         else if (request.method === "GET" && contentMatch) response = await handleGetResourceContent(env, decodeURIComponent(contentMatch[1]), reqId);
