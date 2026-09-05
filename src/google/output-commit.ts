@@ -57,22 +57,32 @@ export async function appendGoogleSheetWithCommit(env: Env, input: { executionId
   try { metadata = JSON.parse(resource.metadata_json) as { sheetName: string; range: string }; }
   catch { return { kind: "ERROR", status: 500, error: "CONFIG_ERROR", message: "Google Sheet resource metadata is invalid" }; }
 
-  await appendExecutionEvent(env, input.executionId, "GOOGLE_SHEET_APPEND_PREPARED", { resourceId: input.resourceId, commitId: commit.output_commit_id, rowCount: input.rows.length, payloadHash });
+  try { await appendExecutionEvent(env, input.executionId, "GOOGLE_SHEET_APPEND_PREPARED", { resourceId: input.resourceId, commitId: commit.output_commit_id, rowCount: input.rows.length, payloadHash }); } catch {}
+
+  let providerResult: { updatedRange: string | null; updatedRows: number; providerReference: string | null };
   try {
-    const result = await appendSheetRows(env, resource.external_id || "", metadata.sheetName, metadata.range, input.rows);
-    await markOutputCommitCommitted(env, commit.output_commit_id, result.providerReference);
-    commit = (await findOutputCommit(env, input.executionId, input.resourceId, input.artifactRole, input.commitKey))!;
-    await appendExecutionEvent(env, input.executionId, "GOOGLE_SHEET_APPEND_COMMITTED", { resourceId: input.resourceId, commitId: commit.output_commit_id, rowCount: result.updatedRows, providerReference: result.providerReference });
-    return { kind: "SUCCESS", commit, appendedRows: result.updatedRows, idempotentReplay: false };
+    providerResult = await appendSheetRows(env, resource.external_id || "", metadata.sheetName, metadata.range, input.rows);
   } catch (error) {
     const anyError = error as Error & { googleMapped?: { status: number; error: string; message: string }; requestMayHaveBeenSent?: boolean };
     const mapped = anyError.googleMapped ?? { status: 502, error: "GOOGLE_SHEETS_APPEND_FAILED", message: anyError.message || "Google Sheets append failed" };
     if (anyError.requestMayHaveBeenSent) {
       await markOutputCommitUnknown(env, commit.output_commit_id, mapped.error, mapped.message);
-      await appendExecutionEvent(env, input.executionId, "GOOGLE_SHEET_APPEND_UNKNOWN", { resourceId: input.resourceId, commitId: commit.output_commit_id, error: mapped.error });
+      try { await appendExecutionEvent(env, input.executionId, "GOOGLE_SHEET_APPEND_UNKNOWN", { resourceId: input.resourceId, commitId: commit.output_commit_id, error: mapped.error }); } catch {}
       return { kind: "ERROR", status: 409, error: "OUTPUT_COMMIT_UNKNOWN", message: "Google append result is ambiguous; automatic retry is blocked" };
     }
     await markOutputCommitFailed(env, commit.output_commit_id, mapped.error, mapped.message);
     return { kind: "ERROR", status: mapped.status, error: mapped.error, message: mapped.message };
   }
+
+  try {
+    await markOutputCommitCommitted(env, commit.output_commit_id, providerResult.providerReference);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    try { await markOutputCommitUnknown(env, commit.output_commit_id, "OUTPUT_COMMIT_STATE_PERSIST_FAILED", message); } catch {}
+    return { kind: "ERROR", status: 409, error: "OUTPUT_COMMIT_UNKNOWN", message: "Google append succeeded but commit state could not be persisted safely; automatic retry is blocked" };
+  }
+
+  commit = (await findOutputCommit(env, input.executionId, input.resourceId, input.artifactRole, input.commitKey)) ?? { ...commit, status: "COMMITTED", provider_reference: providerResult.providerReference, attempt_count: commit.attempt_count + 1, committed_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+  try { await appendExecutionEvent(env, input.executionId, "GOOGLE_SHEET_APPEND_COMMITTED", { resourceId: input.resourceId, commitId: commit.output_commit_id, rowCount: providerResult.updatedRows, providerReference: providerResult.providerReference }); } catch {}
+  return { kind: "SUCCESS", commit, appendedRows: providerResult.updatedRows, idempotentReplay: false };
 }

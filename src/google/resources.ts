@@ -65,3 +65,33 @@ export async function registerGoogleDriveFileResource(env: Env, fileId: string):
   await insertResource(env, resource);
   return { resource, reused: false };
 }
+
+export async function registerGoogleDriveFolderResource(env: Env, folderId: string): Promise<{ resource: ResourceReferenceRow; reused: boolean }> {
+  const metadata = await getDriveFileMetadata(env, folderId);
+  if (metadata.mimeType !== "application/vnd.google-apps.folder") {
+    throw Object.assign(new Error("Google resource is not a Drive folder"), { googleMapped: { status: 422, error: "INVALID_RESOURCE_TYPE", message: "Google resource is not a Drive folder" } });
+  }
+  const canonicalUri = `gdrive-folder://${folderId}`;
+  const existing = await findResourceByCanonicalUri(env, canonicalUri);
+  if (existing) return { resource: existing, reused: true };
+  const now = new Date().toISOString();
+  const resource: ResourceReferenceRow = {
+    resource_id: `RES_${crypto.randomUUID()}`,
+    resource_type: "API_RESOURCE",
+    provider: "GOOGLE",
+    canonical_uri: canonicalUri,
+    business_uri: metadata.webViewLink ?? `https://drive.google.com/drive/folders/${folderId}`,
+    external_id: folderId,
+    external_parent_id: null,
+    mime_type: metadata.mimeType,
+    file_name: metadata.name,
+    content_hash: null,
+    byte_size: null,
+    metadata_json: JSON.stringify({ kind: "DRIVE_FOLDER" }),
+    active_status: "ACTIVE",
+    created_at: now,
+    updated_at: now,
+  };
+  await insertResource(env, resource);
+  return { resource, reused: false };
+}

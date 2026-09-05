@@ -105,3 +105,14 @@ export async function appendSheetRows(env: Env, spreadsheetId: string, sheetName
   const updatedRange = data?.updates?.updatedRange ?? null;
   return { updatedRange, updatedRows: Number(data?.updates?.updatedRows ?? rows.length), providerReference: updatedRange ?? data?.tableRange ?? null };
 }
+
+export async function readSheetHeaders(env: Env, spreadsheetId: string, sheetName: string, headerRow = 1): Promise<GoogleCellValue[]> {
+  const a1 = `${quoteSheetName(sheetName)}!${headerRow}:${headerRow}`;
+  const url = `${GOOGLE_SHEETS_BASE_URL}/spreadsheets/${encodeURIComponent(spreadsheetId)}/values/${encodeURIComponent(a1)}?majorDimension=ROWS&valueRenderOption=UNFORMATTED_VALUE&dateTimeRenderOption=SERIAL_NUMBER`;
+  const result = await googleFetch<ValuesResponse>(env, url);
+  if (!result.response.ok) {
+    const mapped = mapGoogleError(result.response.status, "SHEETS_READ");
+    throw Object.assign(new Error(mapped.message), { googleMapped: mapped, providerText: result.text.slice(0, 500) });
+  }
+  return (result.data?.values?.[0] ?? []).map(normalizeCell);
+}
