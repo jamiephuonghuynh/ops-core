@@ -80,3 +80,11 @@ export async function transitionExecutionIfNotStatus(
   `).bind(executionId, status, startedAt, completedAt, resultCode, resultMessage, now).run();
   return (result.meta.changes ?? 0) > 0;
 }
+
+export async function setExecutionRuntimeConfig(env: Env, executionId: string, config: { runtimeConfigVersion: string; mappingSetId: string; bindingVersion: string }): Promise<void> {
+  await env.DB.prepare(`
+    UPDATE execution_instances
+    SET runtime_config_version = ?2, mapping_set_id = ?3, binding_version = ?4, updated_at = ?5
+    WHERE execution_id = ?1
+  `).bind(executionId, config.runtimeConfigVersion, config.mappingSetId, config.bindingVersion, new Date().toISOString()).run();
+}
