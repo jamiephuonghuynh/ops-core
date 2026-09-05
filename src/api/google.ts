@@ -1,7 +1,7 @@
 import { errorResponse, jsonResponse } from "../response";
 import type { Env, GoogleCellValue, GoogleSnapshotMode } from "../types";
 import { getGoogleAccessToken, isGoogleWorkspaceConfigured } from "../google/auth";
-import { registerGoogleDriveFileResource, registerGoogleSheetResource } from "../google/resources";
+import { registerGoogleDriveFileResource, registerGoogleDriveFolderResource, registerGoogleSheetResource } from "../google/resources";
 import { getResource } from "../db/resources";
 import { readNormalizedSheet } from "../google/sheets";
 import { createGoogleSheetSnapshot } from "../google/snapshots";
@@ -75,6 +75,17 @@ export async function handleRegisterGoogleDriveFile(request: Request, env: Env, 
   if (!body.fileId?.trim()) return errorResponse("INVALID_REQUEST", "fileId is required", 400, requestId);
   try {
     const result = await registerGoogleDriveFileResource(env, body.fileId.trim());
+    return jsonResponse({ ok: true, resource: result.resource, idempotentReplay: result.reused }, result.reused ? 200 : 201, requestId);
+  } catch (error) { const mapped = mappedGoogleError(error); return errorResponse(mapped.error, mapped.message, mapped.status, requestId); }
+}
+
+
+export async function handleRegisterGoogleDriveFolder(request: Request, env: Env, requestId: string): Promise<Response> {
+  let body: { folderId?: string };
+  try { body = await request.json(); } catch { return errorResponse("INVALID_REQUEST", "Request body must be JSON", 400, requestId); }
+  if (!body.folderId?.trim()) return errorResponse("INVALID_REQUEST", "folderId is required", 400, requestId);
+  try {
+    const result = await registerGoogleDriveFolderResource(env, body.folderId.trim());
     return jsonResponse({ ok: true, resource: result.resource, idempotentReplay: result.reused }, result.reused ? 200 : 201, requestId);
   } catch (error) { const mapped = mappedGoogleError(error); return errorResponse(mapped.error, mapped.message, mapped.status, requestId); }
 }
