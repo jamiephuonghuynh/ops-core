@@ -8,7 +8,7 @@ export interface Task001FieldMapping {
 }
 
 export const TASK001_ID = "task001_smartlink_order";
-export const TASK001_DEFINITION_VERSION = "TASK001-PROD-FOUNDATION-01";
+export const TASK001_DEFINITION_VERSION = "TASK001-PRODUCTION-CUTOVER-01";
 
 export const GAPP_INPUT_MAPPINGS: Task001FieldMapping[] = [
   { sourceField: "IDtracking", standardField: "order_id", dataType: "text", required: false },
