@@ -8,7 +8,11 @@
     "required": [
       "OPS_CORE_API_KEY",
       "GOOGLE_SERVICE_ACCOUNT_EMAIL",
-      "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY"
+      "GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY",
+      "OPS_STAGING_URL",
+      "OPS_STAGING_FETCH_KEY",
+      "RESEND_API_KEY",
+      "RESEND_FROM_EMAIL"
     ]
   },
   "d1_databases": [
