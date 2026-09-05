@@ -87,16 +87,33 @@ async function clearBootstrapProgress(env: Env): Promise<void> {
   await env.DB.prepare(`DELETE FROM system_meta WHERE meta_key=?1`).bind(BOOTSTRAP_PROGRESS_META_KEY).run();
 }
 
+const D1_MAX_BIND_VARIABLES = 100;
+const EXISTING_KEY_BATCH_SIZE = D1_MAX_BIND_VARIABLES - 1; // namespace + keys <= 100
+const INSERT_BINDINGS_PER_ROW = 7;
+const INSERT_BATCH_SIZE = Math.floor(D1_MAX_BIND_VARIABLES / INSERT_BINDINGS_PER_ROW); // 14 rows = 98 vars
+const COMMIT_BATCH_SIZE = D1_MAX_BIND_VARIABLES - 1; // claim ids + timestamp <= 100
+
+function chunksOf<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
 async function existingClaimsForKeys(env: Env, namespace: string, keys: string[]): Promise<Map<string, ExistingBootstrapClaim>> {
   const uniqueKeys = [...new Set(keys.filter(Boolean))];
   if (!uniqueKeys.length) return new Map();
-  const placeholders = uniqueKeys.map((_, i) => `?${i + 2}`).join(",");
-  const rows = await env.DB.prepare(`
-    SELECT business_key_claim_id,business_key,payload_hash,source_execution_id,status
-    FROM business_key_claims
-    WHERE namespace=?1 AND business_key IN (${placeholders})
-  `).bind(namespace, ...uniqueKeys).all<ExistingBootstrapClaim>();
-  return new Map((rows.results ?? []).map((row) => [row.business_key, row]));
+
+  const found = new Map<string, ExistingBootstrapClaim>();
+  for (const keyBatch of chunksOf(uniqueKeys, EXISTING_KEY_BATCH_SIZE)) {
+    const placeholders = keyBatch.map((_, i) => `?${i + 2}`).join(",");
+    const rows = await env.DB.prepare(`
+      SELECT business_key_claim_id,business_key,payload_hash,source_execution_id,status
+      FROM business_key_claims
+      WHERE namespace=?1 AND business_key IN (${placeholders})
+    `).bind(namespace, ...keyBatch).all<ExistingBootstrapClaim>();
+    for (const row of rows.results ?? []) found.set(row.business_key, row);
+  }
+  return found;
 }
 
 async function processBootstrapChunk(env: Env, input: {
@@ -141,10 +158,10 @@ async function processBootstrapChunk(env: Env, input: {
     inserted += 1;
   }
 
-  if (inserts.length) {
+  for (const insertBatch of chunksOf(inserts, INSERT_BATCH_SIZE)) {
     const values: string[] = [];
     const args: unknown[] = [];
-    for (const item of inserts) {
+    for (const item of insertBatch) {
       const base = args.length;
       values.push(`(?${base+1},?${base+2},?${base+3},?${base+4},?${base+5},?${base+6},'CLAIMED',?${base+7},?${base+7},NULL)`);
       args.push(item.id,input.namespace,item.key,item.hash,input.executionId,input.resourceId,now);
@@ -158,13 +175,13 @@ async function processBootstrapChunk(env: Env, input: {
   }
 
   const uniqueClaimIds = [...new Set(claimIdsToCommit)];
-  if (uniqueClaimIds.length) {
-    const placeholders = uniqueClaimIds.map((_,i)=>`?${i+1}`).join(",");
+  for (const claimBatch of chunksOf(uniqueClaimIds, COMMIT_BATCH_SIZE)) {
+    const placeholders = claimBatch.map((_,i)=>`?${i+1}`).join(",");
     await env.DB.prepare(`
       UPDATE business_key_claims
-      SET status='COMMITTED', committed_at=?${uniqueClaimIds.length+1}, updated_at=?${uniqueClaimIds.length+1}
+      SET status='COMMITTED', committed_at=?${claimBatch.length+1}, updated_at=?${claimBatch.length+1}
       WHERE business_key_claim_id IN (${placeholders}) AND status='CLAIMED'
-    `).bind(...uniqueClaimIds,now).run();
+    `).bind(...claimBatch,now).run();
   }
   return { inserted, identical, conflict, claimIdsToCommit: uniqueClaimIds };
 }
