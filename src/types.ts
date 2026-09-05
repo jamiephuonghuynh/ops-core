@@ -56,6 +56,9 @@ export interface ExecutionRow {
   idempotency_key: string;
   request_hash: string;
   request_payload_json: string | null;
+  runtime_config_version: string | null;
+  mapping_set_id: string | null;
+  binding_version: string | null;
   parent_execution_id: string | null;
   correlation_id: string | null;
   created_at: string;
@@ -208,4 +211,86 @@ export interface NormalizedGoogleSheet {
   fetchedAt: string;
   snapshotHash: string;
   canonicalJson: string;
+}
+
+export type BindingDirection = "INPUT" | "REFERENCE" | "OUTPUT" | "DELIVERY";
+export type MappingDirection = "INPUT" | "OUTPUT";
+export type InputProcessingStatus = "AVAILABLE" | "PROCESSING" | "PROCESSED" | "PROCESSED_NO_OUTPUT" | "FAILED";
+export type BusinessKeyClaimStatus = "CLAIMED" | "COMMITTED" | "UNKNOWN";
+
+export interface ResourceBindingRow {
+  binding_id: string;
+  task_id: string;
+  binding_role: string;
+  binding_direction: BindingDirection;
+  resource_id: string;
+  binding_version: string;
+  active_status: "ACTIVE" | "INACTIVE";
+  config_json: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FieldMappingSetRow {
+  mapping_set_id: string;
+  task_id: string;
+  mapping_version: string;
+  source_resource_id: string;
+  source_hash: string;
+  status: "DRAFT" | "PUBLISHED" | "SUPERSEDED";
+  published_at: string | null;
+  published_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FieldMappingEntryRow {
+  mapping_entry_id: string;
+  mapping_set_id: string;
+  binding_role: string;
+  mapping_direction: MappingDirection;
+  source_config_id: string;
+  source_field: string;
+  standard_field: string;
+  data_type: "text" | "number" | "datetime";
+  required_flag: number;
+  ordinal: number;
+  created_at: string;
+}
+
+export interface InputProcessingRow {
+  input_processing_id: string;
+  task_id: string;
+  input_role: string;
+  resource_id: string;
+  resource_identity: string;
+  content_hash: string | null;
+  generation: number;
+  status: InputProcessingStatus;
+  execution_id: string | null;
+  detected_at: string;
+  started_at: string | null;
+  processed_at: string | null;
+  processed_by: string | null;
+  parent_input_processing_id: string | null;
+  reprocess_requested_by: string | null;
+  reprocess_reason: string | null;
+  result_code: string | null;
+  error_code: string | null;
+  error_detail: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BusinessKeyClaimRow {
+  business_key_claim_id: string;
+  namespace: string;
+  business_key: string;
+  payload_hash: string;
+  source_execution_id: string;
+  canonical_resource_id: string;
+  status: BusinessKeyClaimStatus;
+  created_at: string;
+  updated_at: string;
+  committed_at: string | null;
 }
